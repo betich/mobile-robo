@@ -1,10 +1,9 @@
 #pragma once
 #include <Arduino.h>
 
-// Motor pin assignments — adjust to match your OpenCR wiring
-// OpenCR has onboard motor driver outputs on pins A0–A3 (or use DYNAMIXEL)
-// These are PWM + direction pins for a generic H-bridge setup.
-// Replace with your actual driver API if using Dynamixel or a different driver.
+// Motor pin assignments — adjust to match your OpenCR wiring.
+// These assume PWM + direction pins for a generic H-bridge.
+// Replace driveMotor() with your actual driver API if using Dynamixel.
 
 #define M1_PWM  2   // FL
 #define M1_DIR  3
@@ -24,7 +23,6 @@ inline void motorInit() {
     }
 }
 
-// Drive a single motor: speed -255..255 (negative = reverse)
 inline void driveMotor(uint8_t pwmPin, uint8_t dirPin, int speed) {
     if (speed >= 0) {
         digitalWrite(dirPin, HIGH);
@@ -35,14 +33,13 @@ inline void driveMotor(uint8_t pwmPin, uint8_t dirPin, int speed) {
     }
 }
 
-// Set all four wheels at once
 // Layout:
 //   FL (M1)  FR (M2)
 //   BL (M3)  BR (M4)
 //
-// Forward:           fl+ fr+ bl+ br+
-// Clockwise rotate:  fl+ fr- bl- br+
-// Strafe right:      fl+ fr- bl+ br-
+// Forward:          all +
+// Clockwise rotate: FL+  FR-  BL-  BR+
+// Strafe right:     FL+  FR-  BL+  BR-
 inline void setWheels(int fl, int fr, int bl, int br) {
     driveMotor(M1_PWM, M1_DIR, fl);
     driveMotor(M2_PWM, M2_DIR, fr);
@@ -50,6 +47,4 @@ inline void setWheels(int fl, int fr, int bl, int br) {
     driveMotor(M4_PWM, M4_DIR, br);
 }
 
-inline void stopWheels() {
-    setWheels(0, 0, 0, 0);
-}
+inline void stopWheels() { setWheels(0, 0, 0, 0); }

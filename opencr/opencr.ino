@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include "mecanum.h"
 
 // --- Tune these to match your robot's actual speed/geometry ---
@@ -10,13 +9,12 @@
 
 void squareDrive() {
     for (int side = 0; side < 4; side++) {
-        // Forward
         setWheels(DRIVE_SPEED, DRIVE_SPEED, DRIVE_SPEED, DRIVE_SPEED);
         delay(DRIVE_MS);
         stopWheels();
         delay(PAUSE_MS);
 
-        // Rotate clockwise ~90°
+        // Clockwise ~90°
         setWheels(TURN_SPEED, -TURN_SPEED, -TURN_SPEED, TURN_SPEED);
         delay(TURN_MS);
         stopWheels();
@@ -24,7 +22,7 @@ void squareDrive() {
     }
 }
 
-// --- Serial command listener ---
+// Serial command listener
 // Format: "MOVE <fl> <fr> <bl> <br>\n"  (values -255..255)
 void handleSerial() {
     if (Serial.available() == 0) return;
@@ -35,8 +33,7 @@ void handleSerial() {
     if (!line.startsWith("MOVE")) return;
 
     int fl, fr, bl, br;
-    int parsed = sscanf(line.c_str(), "MOVE %d %d %d %d", &fl, &fr, &bl, &br);
-    if (parsed == 4) {
+    if (sscanf(line.c_str(), "MOVE %d %d %d %d", &fl, &fr, &bl, &br) == 4) {
         setWheels(fl, fr, bl, br);
         Serial.println("OK");
     } else {

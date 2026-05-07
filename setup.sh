@@ -16,8 +16,18 @@ sudo apt-get install -y \
 echo "==> Installing Python dependencies"
 pip3 install --break-system-packages -r controller/requirements.txt
 
-echo "==> Installing PlatformIO (for flashing OpenCR from RPi)"
-pip3 install --break-system-packages platformio
+echo "==> Installing arduino-cli (for flashing OpenCR from RPi)"
+curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR="$HOME/.local/bin" sh
+
+echo "==> Ensuring ~/.local/bin is in PATH"
+grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc || \
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+export PATH="$HOME/.local/bin:$PATH"
+
+echo "==> Installing OpenCR arduino core"
+OPENCR_INDEX="https://raw.githubusercontent.com/ROBOTIS-GIT/OpenCR/master/arduino/opencr_arduino/opencr/package_opencr_index.json"
+arduino-cli core update-index --additional-urls "$OPENCR_INDEX"
+arduino-cli core install OpenCR:OpenCR --additional-urls "$OPENCR_INDEX"
 
 echo "==> Adding udev rules for OpenCR USB access"
 # Lets non-root users access /dev/ttyACM0 without sudo
@@ -43,5 +53,5 @@ echo "Quick reference:"
 echo "  Web UI        : http://$(hostname -I | awk '{print $1}'):8080"
 echo "  Service logs  : journalctl -u mobile-robo -f"
 echo "  Restart service: sudo systemctl restart mobile-robo"
-echo "  Flash OpenCR  : cd ~/mobile-robo/opencr && pio run -t upload"
-echo "  Serial monitor: pio device monitor -p /dev/ttyACM0 -b 115200"
+echo "  Flash OpenCR  : cd ~/mobile-robo && ./flash.sh"
+echo "  Serial monitor: arduino-cli monitor --port /dev/ttyACM0 --config baudrate=115200"
