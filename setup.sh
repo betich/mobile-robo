@@ -16,24 +16,11 @@ sudo apt-get install -y \
 echo "==> Installing Python dependencies"
 pip3 install --break-system-packages -r controller/requirements.txt
 
-echo "==> Installing arduino-cli (for flashing OpenCR from RPi)"
-curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR="$HOME/.local/bin" sh
-
-echo "==> Ensuring ~/.local/bin is in PATH"
-grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc || \
-    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-export PATH="$HOME/.local/bin:$PATH"
-
-echo "==> Installing OpenCR arduino core"
-OPENCR_INDEX="https://raw.githubusercontent.com/ROBOTIS-GIT/OpenCR/master/arduino/opencr_arduino/opencr/package_opencr_index.json"
-arduino-cli core update-index --additional-urls "$OPENCR_INDEX"
-arduino-cli core install OpenCR:OpenCR --additional-urls "$OPENCR_INDEX"
 
 echo "==> Adding udev rules for OpenCR USB access"
-# Lets non-root users access /dev/ttyACM0 without sudo
-cat <<'EOF' | sudo tee /etc/udev/rules.d/99-opencr.rules > /dev/null
-SUBSYSTEM=="tty", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", MODE="0666", SYMLINK+="opencr"
-EOF
+wget -q https://raw.githubusercontent.com/ROBOTIS-GIT/OpenCR/master/99-opencr-cdc.rules
+sudo cp ./99-opencr-cdc.rules /etc/udev/rules.d/
+rm ./99-opencr-cdc.rules
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 
