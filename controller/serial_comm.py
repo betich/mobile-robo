@@ -3,7 +3,7 @@ import time
 
 
 class SerialComm:
-    def __init__(self, port="/dev/ttyACM0", baud=115200, timeout=1.0):
+    def __init__(self, port="/dev/opencr", baud=115200, timeout=1.0):
         self.ser = serial.Serial(port, baud, timeout=timeout)
         time.sleep(0.5)  # let OpenCR reset after connection
 

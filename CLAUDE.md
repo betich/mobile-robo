@@ -7,7 +7,7 @@ Mecanum-wheel robot with a Raspberry Pi controller layer and an OpenCR motor-dri
 | Component | Details |
 |-----------|---------|
 | Raspberry Pi | 100.69.19.59, user: kengvaris |
-| OpenCR board | USB-connected to RPi at `/dev/ttyACM0` |
+| OpenCR board | USB-connected to RPi at `/dev/opencr` |
 | Wheels | 4× mecanum wheels (FL M1, FR M2, BL M3, BR M4) |
 
 ## Layer Separation

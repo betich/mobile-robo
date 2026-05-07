@@ -7,7 +7,7 @@ OpenCR must be connected via USB before running.
 import time
 from serial_comm import SerialComm
 
-SERIAL_PORT = "/dev/ttyACM0"
+SERIAL_PORT = "/dev/opencr"
 BAUD = 115200
 
 

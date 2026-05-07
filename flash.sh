@@ -1,54 +1,67 @@
 #!/usr/bin/env bash
-# Run from the project root on your LOCAL machine (Mac), not on the RPi.
-# Temporarily connect OpenCR USB to this machine, flash, then reconnect to RPi.
+# Flash OpenCR firmware from your local Mac.
+# OpenCR stays connected to the RPi — flashing tunnels through SSH.
 #
-# Usage:
-#   ./flash.sh                   # auto-detect USB port
-#   ./flash.sh /dev/cu.usbmodemXXX  # specify port
+# Usage: ./flash.sh
 set -e
 
-BOARD="OpenCR:OpenCR:opencr"
-OPENCR_INDEX="https://raw.githubusercontent.com/ROBOTIS-GIT/OpenCR/master/arduino/opencr_release/package_opencr_index.json"
+BOARD="OpenCR:OpenCR:OpenCR"
 SKETCH="opencr"
+BUILD_DIR="/tmp/opencr-build"
+VIRT_PORT="/tmp/opencr-tty"
+BRIDGE_PORT=4444
 
-# --- Detect port ---
-if [ -n "$1" ]; then
-    PORT="$1"
-else
-    PORT=$(ls /dev/cu.usbmodem* /dev/ttyACM* 2>/dev/null | head -1)
-    if [ -z "$PORT" ]; then
-        echo "ERROR: No OpenCR USB device found."
-        echo "  Connect OpenCR to this machine and retry, or specify port:"
-        echo "  ./flash.sh /dev/cu.usbmodemXXXXX"
-        exit 1
-    fi
-    echo "==> Auto-detected port: $PORT"
-fi
+RPI_USER=kengvaris
+RPI_HOST=100.69.19.59
+RPI_PASS=014719
+OPENCR_PORT=/dev/opencr
 
-# --- Install arduino-cli if missing ---
-if ! command -v arduino-cli &>/dev/null; then
-    echo "==> Installing arduino-cli"
-    brew install arduino-cli
-fi
+OPENCR_LD=~/Library/Arduino15/packages/OpenCR/tools/opencr_tools/1.0.0/macosx/opencr_ld
 
-# --- Configure OpenCR board manager URL (idempotent) ---
-if ! arduino-cli config dump 2>/dev/null | grep -q "opencr_release"; then
-    echo "==> Adding OpenCR board manager URL"
-    arduino-cli config add board_manager.additional_urls "$OPENCR_INDEX"
-fi
+SSH_BASE=(sshpass -p "$RPI_PASS" ssh -o StrictHostKeyChecking=no)
 
-# --- Install OpenCR core if missing ---
-if ! arduino-cli core list 2>/dev/null | grep -q "OpenCR:OpenCR"; then
-    echo "==> Installing OpenCR arduino core (first time, may take a while)"
-    arduino-cli core update-index
-    arduino-cli core install OpenCR:OpenCR
-fi
+SSH_CMD() { "${SSH_BASE[@]}" "$RPI_USER@$RPI_HOST" "$@"; }
 
+cleanup() {
+    echo "==> Cleaning up"
+    kill "$SSH_PID" "$SOCAT_PID" 2>/dev/null || true
+    # restart service regardless of how we exit
+    SSH_CMD "echo '014719' | sudo -S systemctl start mobile-robo" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# --- 1. Compile ---
 echo "==> Compiling $SKETCH"
-arduino-cli compile --fqbn "$BOARD" "$SKETCH"
+arduino-cli compile --fqbn "$BOARD" --output-dir "$BUILD_DIR" "$SKETCH"
+BIN="$BUILD_DIR/opencr.ino.bin"
 
-echo "==> Uploading to $PORT"
-arduino-cli upload --fqbn "$BOARD" --port "$PORT" "$SKETCH"
+# --- 2. Stop service so it releases the serial port ---
+echo "==> Stopping mobile-robo service"
+SSH_CMD "echo '014719' | sudo -S systemctl stop mobile-robo"
+
+# --- 3. Open SSH tunnel: Mac:BRIDGE_PORT → RPi socat → /dev/opencr ---
+echo "==> Opening serial tunnel"
+"${SSH_BASE[@]}" \
+    -L "$BRIDGE_PORT:localhost:$BRIDGE_PORT" \
+    "$RPI_USER@$RPI_HOST" \
+    "socat TCP-LISTEN:$BRIDGE_PORT,reuseaddr $OPENCR_PORT,b115200,rawer" &
+SSH_PID=$!
+sleep 2
+
+# --- 4. Create virtual serial port on Mac ---
+echo "==> Creating virtual serial port"
+rm -f "$VIRT_PORT"
+socat pty,link="$VIRT_PORT",rawer tcp:localhost:$BRIDGE_PORT &
+SOCAT_PID=$!
+sleep 1
+
+REAL_PORT=$(readlink "$VIRT_PORT" 2>/dev/null || echo "")
+[ -z "$REAL_PORT" ] && { echo "ERROR: virtual port not created"; exit 1; }
+echo "  Port: $REAL_PORT"
+
+# --- 5. Flash ---
+echo "==> Flashing"
+"$OPENCR_LD" "$REAL_PORT" 115200 "$BIN" 1
 
 echo ""
-echo "Done! Reconnect OpenCR to the RPi (/dev/ttyACM0)."
+echo "Done!"

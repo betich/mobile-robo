@@ -59,7 +59,7 @@ def mecanum(vx: float, vy: float, omega: float, speed: int = SPEED) -> tuple[int
 # App setup
 # ---------------------------------------------------------------------------
 
-SERIAL_PORT = "/dev/ttyACM0"
+SERIAL_PORT = "/dev/opencr"
 BAUD = 115200
 PORT = 8080
 
