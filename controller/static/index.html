@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mobile-robo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #111; color: #eee; font-family: monospace; height: 100dvh; display: flex; flex-direction: column; }
+
+  #feed-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  #feed {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  #controls {
+    display: grid;
+    grid-template-columns: repeat(3, 64px);
+    grid-template-rows: repeat(2, 64px);
+    gap: 6px;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .btn {
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 8px;
+    color: #eee;
+    font-size: 22px;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s;
+    touch-action: none;
+  }
+  .btn.active, .btn:active { background: #0a84ff; border-color: #0a84ff; }
+
+  #btn-f { grid-column: 2; grid-row: 1; }
+  #btn-l { grid-column: 1; grid-row: 2; }
+  #btn-b { grid-column: 2; grid-row: 2; }
+  #btn-r { grid-column: 3; grid-row: 2; }
+
+  #status {
+    text-align: center;
+    font-size: 11px;
+    color: #666;
+    padding-bottom: 6px;
+  }
+  #status.ok { color: #30d158; }
+  #status.err { color: #ff453a; }
+</style>
+</head>
+<body>
+
+<div id="feed-wrap">
+  <img id="feed" src="/stream" alt="camera feed">
+</div>
+
+<div id="controls">
+  <button class="btn" id="btn-f" data-cmd="F">↑</button>
+  <button class="btn" id="btn-l" data-cmd="L">←</button>
+  <button class="btn" id="btn-b" data-cmd="B">↓</button>
+  <button class="btn" id="btn-r" data-cmd="R">→</button>
+</div>
+
+<div id="status">connecting…</div>
+
+<script>
+// --- WebSocket with auto-reconnect ---
+let ws = null;
+const status = document.getElementById('status');
+
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => { status.textContent = 'connected'; status.className = 'ok'; };
+  ws.onclose = () => { status.textContent = 'disconnected — retrying…'; status.className = 'err'; setTimeout(connect, 2000); };
+  ws.onerror = () => ws.close();
+}
+connect();
+
+function send(cmd) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(cmd);
+}
+
+// --- Key → command mapping ---
+const KEY_MAP = {
+  ArrowUp: 'F', KeyW: 'F',
+  ArrowDown: 'B', KeyS: 'B',
+  ArrowLeft: 'L', KeyA: 'L',
+  ArrowRight: 'R', KeyD: 'R',
+};
+
+let activeCmd = null;
+let holdInterval = null;
+
+function startCmd(cmd) {
+  if (cmd === activeCmd) return;
+  activeCmd = cmd;
+  send(cmd);
+  clearInterval(holdInterval);
+  holdInterval = setInterval(() => send(cmd), 100);
+  document.querySelectorAll('.btn').forEach(b => b.classList.toggle('active', b.dataset.cmd === cmd));
+}
+
+function stopCmd() {
+  activeCmd = null;
+  clearInterval(holdInterval);
+  send('STOP');
+  document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+}
+
+// Keyboard
+const heldKeys = new Set();
+window.addEventListener('keydown', e => {
+  if (e.repeat) return;
+  const cmd = KEY_MAP[e.code];
+  if (!cmd) return;
+  e.preventDefault();
+  heldKeys.add(e.code);
+  startCmd(cmd);
+});
+window.addEventListener('keyup', e => {
+  heldKeys.delete(e.code);
+  const cmd = KEY_MAP[e.code];
+  if (!cmd) return;
+  // Only stop if no other mapped key is still held
+  const remaining = [...heldKeys].map(k => KEY_MAP[k]).find(Boolean);
+  if (remaining) startCmd(remaining);
+  else stopCmd();
+});
+
+// Touch / mouse buttons
+document.querySelectorAll('.btn').forEach(btn => {
+  const cmd = btn.dataset.cmd;
+  btn.addEventListener('pointerdown', e => { e.preventDefault(); btn.setPointerCapture(e.pointerId); startCmd(cmd); });
+  btn.addEventListener('pointerup', () => stopCmd());
+  btn.addEventListener('pointercancel', () => stopCmd());
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+[Unit]
+Description=mobile-robo web controller
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/kengvaris/mobile-robo/controller/server.py
+WorkingDirectory=/home/kengvaris/mobile-robo/controller
+Restart=always
+User=kengvaris
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

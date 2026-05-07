@@ -67,16 +67,44 @@ On boot, OpenCR runs `squareDrive()` autonomously — no RPi needed. Tune these 
 ./sync.sh   # rsync controller/ → kengvaris@100.69.19.59:~/mobile-robo/controller/
 ```
 
-## Running on RPi
+## Web Controller
+
+Served from the RPi at **http://100.69.19.59:8080**
+
+- Camera stream: `/stream` (MJPEG)
+- Drive UI: `/` — WASD / arrow keys + on-screen pad
+
+Runs as a systemd daemon (`mobile-robo.service`):
+
+```bash
+sudo systemctl restart mobile-robo   # restart
+journalctl -u mobile-robo -f         # live logs
+```
+
+### Mecanum Kinematics
+
+```
+Motor layout:  FL [/]  FR [\]
+               BL [\]  BR [/]
+
+v_FL =  vx − vy − ω
+v_FR =  vx + vy + ω
+v_BL =  vx + vy − ω
+v_BR =  vx − vy + ω
+
+(vx = forward, vy = strafe-left, ω = rotate-CCW; scale to -255..255)
+```
+
+Key mapping: W/↑ = F, S/↓ = B, A/← = rotate-left, D/→ = rotate-right
+
+## Running on RPi (manual)
 
 ```bash
 ssh kengvaris@100.69.19.59
 cd ~/mobile-robo/controller
-python3 main.py
+python3 server.py
 ```
-
-Requires `pyserial`: `pip3 install pyserial`
 
 ## Adding Peripherals
 
-Add new modules under `controller/` (e.g., `camera.py`, `lidar.py`) and import them in `main.py`. Keep each peripheral in its own file — one concern per module.
+Add new modules under `controller/` (e.g., `lidar.py`) and import them in `server.py`. Keep each peripheral in its own file — one concern per module.
