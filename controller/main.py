@@ -7,16 +7,13 @@ OpenCR must be connected via USB before running.
 import time
 from serial_comm import SerialComm
 
-SERIAL_PORT = "/dev/opencr"
-BAUD = 115200
-
 
 def main():
-    with SerialComm(SERIAL_PORT, BAUD) as robot:
-        print("Connected to OpenCR")
+    with SerialComm() as robot:
+        print(f"Connected to OpenCR on {robot.port}")
 
         # Demo: drive forward briefly, then stop
-        print(robot.send_move(150, 150, 150, 150))  # forward
+        print(robot.send_drive(0.3, 0.0))   # forward
         time.sleep(1.0)
         print(robot.stop())
 
